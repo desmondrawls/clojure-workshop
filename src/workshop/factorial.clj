@@ -1,4 +1,5 @@
-(ns workshop.factorial)
+(ns workshop.factorial
+  (:require [clojure.core.async :as async :refer [<! >! >!! <!!]]))
 
 (defn factorial
   [n]
@@ -53,16 +54,39 @@
 (def introduction-message
   "I am thinking of a number from 1 to 10\nEnter your guess:")
 
-(defn guess-testable [secret]
-  (println introduction-message)
-  (loop [guess (read)]
+(defn guess-testable [secret messages]
+  (async/go (>! messages introduction-message))
+  (async/go-loop [guess (read)]
     (let [round (make-round {:secret secret :guess guess})]
-      (println (outcome->message (:outcome round)))
-      (when (:continue round) (recur (read))))))
+      (>! messages (outcome->message (:outcome round)))
+        (if (:continue round)
+          (recur (read))
+          (async/close! messages)))))
+
+(defn keep-printing
+  [messages]
+  (async/go-loop []
+    (let [message (<! messages)]
+      (if message
+        (do (println message)
+            (recur))
+        message))))
+
+(defn guess-channels [secret]
+  (let [messages (async/chan 10)
+        printer (keep-printing messages)]
+    (guess-testable secret messages)
+    (<!! printer)))
+
 
 (defn name-of
   [user]
   user)
 
+(def maybe-five (atom {:count 6 :score 9}))
+(def six-ten (swap! maybe-five #(-> %
+                              (update :count inc)
+                              (update :score inc))))
+
 (defn -main [& args]
-  (guess-testable 42))
+  (guess-channels 42))
