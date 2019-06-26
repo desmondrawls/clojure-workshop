@@ -59,9 +59,9 @@
   (async/go-loop [guess (read)]
     (let [round (make-round {:secret secret :guess guess})]
       (>! messages (outcome->message (:outcome round)))
-        (if (:continue round)
-          (recur (read))
-          (async/close! messages)))))
+      (if (:continue round)
+        (recur (read))
+        (async/close! messages)))))
 
 (defn keep-printing
   [messages]
@@ -73,7 +73,7 @@
         message))))
 
 (defn guess-channels [secret]
-  (let [messages (async/chan 10)
+  (let [messages (async/chan 1)
         printer (keep-printing messages)]
     (guess-testable secret messages)
     (<!! printer)))
